@@ -4,16 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TTS</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Pretendard -->
     <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
     <style>
         body {
-            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-            background-color: #fafafa;
-            color: #18181b;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            background-color: #f1f5f9;
         }
 
-        /* Minimalist Custom Range Sliders */
+        /* Custom Range Slider Styling */
         input[type="range"] {
             -webkit-appearance: none;
             appearance: none;
@@ -21,323 +22,413 @@
             cursor: pointer;
         }
         input[type="range"]::-webkit-slider-runnable-track {
-            background: #e4e4e7;
-            height: 4px;
+            background: #e2e8f0;
+            height: 0.45rem;
             border-radius: 9999px;
         }
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
             appearance: none;
             margin-top: -5px;
-            background-color: #18181b;
-            height: 14px;
-            width: 14px;
+            background-color: #4f46e5;
+            height: 1.1rem;
+            width: 1.1rem;
             border-radius: 50%;
-            transition: transform 0.15s ease;
+            box-shadow: 0 2px 4px rgba(79, 70, 229, 0.4);
+            transition: transform 0.15s ease, background-color 0.15s ease;
         }
         input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.2);
+            transform: scale(1.15);
+            background-color: #4338ca;
         }
 
-        /* Scrubber Bar Styling */
-        #scrubber::-webkit-slider-runnable-track {
-            height: 6px;
-            background: #e4e4e7;
-        }
-        #scrubber::-webkit-slider-thumb {
-            margin-top: -4px;
-            height: 14px;
-            width: 14px;
-            background-color: #18181b;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-        }
-
-        /* Subtle Custom Scrollbar */
+        /* Custom Scrollbar */
         ::-webkit-scrollbar {
-            width: 5px;
-            height: 5px;
+            width: 6px;
+            height: 6px;
         }
         ::-webkit-scrollbar-track {
-            background: transparent;
+            background: #f1f5f9;
+            border-radius: 9999px;
         }
         ::-webkit-scrollbar-thumb {
-            background: #d4d4d8;
+            background: #cbd5e1;
             border-radius: 9999px;
         }
         ::-webkit-scrollbar-thumb:hover {
-            background: #a1a1aa;
+            background: #94a3b8;
+        }
+
+        /* Pulsing sound animation */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 0.4; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .pulse-active {
+            animation: pulse-ring 2s infinite ease-in-out;
         }
     </style>
 </head>
-<body class="antialiased min-h-screen flex flex-col pb-28">
+<body class="text-slate-800 antialiased min-h-screen flex flex-col justify-between">
 
-    <!-- Minimal Toast -->
-    <div id="toast" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 transition-all duration-200 -translate-y-16 opacity-0 pointer-events-none">
-        <div class="bg-zinc-900 text-zinc-50 px-4 py-2 rounded-full shadow-lg text-xs font-medium tracking-tight">
-            <span id="toastMessage">알림</span>
+    <!-- Top Notification Toast (Replaces alert) -->
+    <div id="toast" class="fixed top-5 right-5 z-50 transform transition-all duration-300 translate-y-[-150%] opacity-0">
+        <div class="bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 text-sm font-medium border border-slate-800">
+            <span id="toastIcon">ℹ️</span>
+            <span id="toastMessage">알림 메시지</span>
         </div>
     </div>
 
-    <!-- Top Navigation Bar -->
-    <header class="sticky top-0 z-30 bg-[#fafafa]/80 backdrop-blur-md border-b border-zinc-200/80">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <span class="font-bold tracking-tight text-base text-zinc-900">READER</span>
-                <span class="text-zinc-300">|</span>
-                <span id="statsText" class="text-xs text-zinc-500 font-medium tabular-nums">0자 · 약 0분 소요</span>
-            </div>
-
-            <div class="flex items-center gap-2">
-                <input type="file" id="fileInput" accept=".txt,.text,.md" class="hidden">
-                <label for="fileInput" class="px-3 py-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-medium cursor-pointer transition-colors">
-                    파일 열기
-                </label>
-                <button type="button" id="sampleBtn" class="px-3 py-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-medium transition-colors">
-                    샘플
-                </button>
-                <button type="button" id="clearBtn" class="px-3 py-1.5 rounded-lg text-zinc-400 hover:text-zinc-800 hover:bg-zinc-100 text-xs font-medium transition-colors">
-                    지우기
-                </button>
-            </div>
-        </div>
-    </header>
-
-    <!-- Browser Unsupported Alert -->
-    <div id="unsupportedBanner" class="hidden max-w-6xl mx-auto mt-6 px-4 sm:px-6">
-        <div class="p-3.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-medium">
-            현재 브라우저에서는 음성 합성을 지원하지 않습니다. Chrome, Edge 또는 Safari를 사용해 주세요.
-        </div>
-    </div>
-
-    <!-- Main Editorial Workspace -->
-    <main class="max-w-6xl w-full mx-auto px-4 sm:px-6 pt-6 flex-grow grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <!-- Main Container -->
+    <main class="max-w-7xl w-full mx-auto px-4 py-6 sm:py-10 flex-grow flex flex-col gap-6">
         
-        <!-- Left: Text Editor & Dropzone (7 Cols) -->
-        <section id="dropZone" class="lg:col-span-7 flex flex-col bg-white rounded-2xl border border-zinc-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] overflow-hidden transition-colors relative">
-            
-            <!-- Drag Overlay -->
-            <div id="dragOverlay" class="hidden absolute inset-0 bg-zinc-900/5 backdrop-blur-[1px] border-2 border-dashed border-zinc-900 rounded-2xl z-20 flex items-center justify-center pointer-events-none">
-                <span class="bg-zinc-900 text-white text-xs font-medium px-4 py-2 rounded-full shadow-sm">텍스트 파일(.txt) 놓기</span>
-            </div>
-
-            <div class="px-5 py-3 border-b border-zinc-100 flex items-center justify-between">
-                <span class="text-xs font-semibold text-zinc-500">텍스트 입력</span>
-                <span id="chunkSummary" class="text-[11px] text-zinc-400 tabular-nums">0개 구간</span>
-            </div>
-
-            <textarea 
-                id="textInput" 
-                placeholder="텍스트를 입력하거나 .txt 파일을 드래그하여 놓으세요. (30,000자 이상 지원)"
-                class="w-full flex-grow min-h-[420px] lg:min-h-[540px] p-5 resize-none border-0 focus:ring-0 focus:outline-none text-zinc-800 text-[15px] leading-[1.8] placeholder:text-zinc-300"
-            ></textarea>
-        </section>
-
-        <!-- Right: Voice Controls & Segment Playlist (5 Cols) -->
-        <aside class="lg:col-span-5 flex flex-col gap-5">
-            
-            <!-- Compact Audio Settings -->
-            <div class="bg-white rounded-2xl border border-zinc-200/80 p-5 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex flex-col gap-4">
-                <div class="flex items-center justify-between">
-                    <label for="voiceSelect" class="text-xs font-semibold text-zinc-700">목소리</label>
-                    <button type="button" id="resetSettingsBtn" class="text-[11px] text-zinc-400 hover:text-zinc-700 transition-colors">초기화</button>
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl shadow-sm border border-slate-200/80">
+            <div class="flex items-center gap-3.5">
+                <div class="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-200 shrink-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z" />
+                    </svg>
                 </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-2xl font-bold text-slate-900 tracking-tight">TTS</h1>
+                        <span class="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold border border-indigo-100">글자수 제한 없음😀</span>
+                    </div>
+                    <p class="text-slate-500 text-sm mt-0.5">글자 수 제한 없음</p>
+                </div>
+            </div>
 
-                <div class="relative">
-                    <select id="voiceSelect" class="w-full appearance-none rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2.5 pr-9 text-xs text-zinc-800 font-medium focus:border-zinc-900 focus:bg-white focus:outline-none transition-colors">
-                        <option value="">음성 불러오는 중...</option>
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-zinc-400">
-                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                        </svg>
+            <!-- Global Status & Progress Badge -->
+            <div class="flex items-center gap-4 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-200/60">
+                <div class="flex items-center gap-2.5">
+                    <span id="statusDot" class="w-3 h-3 rounded-full bg-slate-300"></span>
+                    <div class="flex flex-col">
+                        <span id="statusText" class="text-xs font-bold text-slate-600">대기 중</span>
+                        <span id="progressPercent" class="text-[11px] text-slate-400">진행률 0%</span>
+                    </div>
+                </div>
+                <div class="h-8 w-px bg-slate-200"></div>
+                <div class="flex flex-col">
+                    <span class="text-[11px] text-slate-400">남은 예상 시간</span>
+                    <span id="remainingTime" class="text-xs font-bold text-slate-700">0분 0초</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Browser Compatibility Warning (Hidden by default) -->
+        <div id="unsupportedBanner" class="hidden p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0 mt-0.5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+            <div>
+                <p class="font-semibold">음성 합성 미지원 브라우저</p>
+                <p class="mt-0.5 text-red-600">현재 사용 중인 브라우저에서는 Web Speech API를 지원하지 않습니다. 최신 Chrome, Edge, Safari 브라우저를 이용해 주세요.</p>
+            </div>
+        </div>
+
+        <!-- Main Workspace Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            <!-- Left Column: Input, File Upload & Controls (7 Cols on lg) -->
+            <div class="lg:col-span-7 flex flex-col gap-6">
+                
+                <!-- Input Card -->
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6 flex flex-col">
+                    <div class="flex flex-wrap items-center justify-between gap-3 pb-4 mb-4 border-b border-slate-100">
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-slate-800 text-sm">텍스트 입력 및 파일 업로드</span>
+                            <span id="charCountBadge" class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-xs font-semibold tabular-nums">0자 (단어 0개)</span>
+                        </div>
+
+                        <!-- Utility Buttons & File Upload -->
+                        <div class="flex items-center gap-2">
+                            <!-- Hidden file input -->
+                            <input type="file" id="fileInput" accept=".txt,.text" class="hidden">
+                            <label for="fileInput" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 shadow-sm">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                </svg>
+                                <span>TXT 파일 열기</span>
+                            </label>
+
+                            <button type="button" id="sampleBtn" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-semibold transition-colors">
+                                샘플 불러오기
+                            </button>
+
+                            <button type="button" id="clearBtn" class="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors" title="전체 지우기">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Textarea optimized for massive text -->
+                    <textarea 
+                        id="textInput" 
+                        rows="14" 
+                        placeholder="여기에 텍스트를 직접 붙여넣거나 .txt 파일을 업로드하셈"
+                        class="w-full resize-y border border-slate-200 rounded-2xl p-4 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 focus:outline-none text-slate-700 text-sm leading-relaxed placeholder:text-slate-400 font-sans"
+                    ></textarea>
+
+                    <div class="flex items-center justify-between mt-3 text-xs text-slate-400">
+                        <span>ㅤ</span>
+                        <span id="chunkInfoText">청크 분할 대기 중 (0개 청크)</span>
                     </div>
                 </div>
 
-                <!-- Sliders Grid -->
-                <div class="grid grid-cols-3 gap-4 pt-1">
-                    <div class="flex flex-col gap-2">
-                        <div class="flex justify-between text-[11px]">
-                            <span class="text-zinc-500 font-medium">속도</span>
-                            <span id="rateValue" class="text-zinc-900 font-semibold tabular-nums">1.0x</span>
+                <!-- Playback Control Center Card -->
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6 flex flex-col gap-4">
+                    
+                    <!-- Global Progress Bar -->
+                    <div class="flex flex-col gap-1.5">
+                        <div class="flex justify-between text-xs font-medium text-slate-500">
+                            <span id="progressTextLabel">전체 재생 진행률 (청크 0 / 0)</span>
+                            <span id="progressNumeric">0%</span>
+                        </div>
+                        <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5 border border-slate-200/50">
+                            <div id="progressBarFill" class="h-full bg-indigo-600 rounded-full transition-all duration-300 w-0"></div>
+                        </div>
+                    </div>
+
+                    <!-- Action Button Grid -->
+                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
+                        <!-- Prev Chunk -->
+                        <button type="button" id="prevChunkBtn" disabled class="py-3 px-3 rounded-2xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none font-semibold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M8.445 14.832A1 1 0 0010 14v-2.798l5.445 3.63A1 1 0 0017 14V6a1 1 0 00-1.555-.832L10 8.798V6a1 1 0 00-1.555-.832l-6 4a1 1 0 000 1.664l6 4z" />
+                            </svg>
+                            <span>이전 청크</span>
+                        </button>
+
+                        <!-- Play / Speak -->
+                        <button type="button" id="playBtn" class="py-3 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-semibold text-xs shadow-md shadow-indigo-200 transition-all flex items-center justify-center gap-2 cursor-pointer col-span-2 sm:col-span-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                            </svg>
+                            <span id="playBtnText">재생 시작</span>
+                        </button>
+
+                        <!-- Pause / Resume -->
+                        <button type="button" id="pauseResumeBtn" disabled class="py-3 px-3 rounded-2xl bg-white border border-slate-200 text-slate-700 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-40 disabled:pointer-events-none font-semibold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                            <svg id="pauseIcon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                            </svg>
+                            <span id="pauseResumeText">일시정지</span>
+                        </button>
+
+                        <!-- Stop -->
+                        <button type="button" id="stopBtn" disabled class="py-3 px-3 rounded-2xl bg-white border border-slate-200 text-slate-700 hover:bg-rose-50 hover:text-rose-700 disabled:opacity-40 disabled:pointer-events-none font-semibold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
+                            </svg>
+                            <span>중지</span>
+                        </button>
+
+                        <!-- Next Chunk -->
+                        <button type="button" id="nextChunkBtn" disabled class="py-3 px-3 rounded-2xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none font-semibold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                            <span>다음 청크</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M11.555 5.168A1 1 0 0010 6v2.798l-5.445-3.63A1 1 0 003 6v12a1 1 0 001.555.832L10 15.202V18a1 1 0 001.555.832l6-4a1 1 0 000-1.664l-6-4z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Settings & Chunk Playlist Explorer (5 Cols on lg) -->
+            <div class="lg:col-span-5 flex flex-col gap-6">
+                
+                <!-- Settings Card -->
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6 flex flex-col gap-5">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <h2 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                            </svg>
+                            <span>음성 및 재생 설정</span>
+                        </h2>
+                        <button type="button" id="resetSettingsBtn" class="text-xs font-medium text-indigo-600 hover:underline">
+                            초기화
+                        </button>
+                    </div>
+
+                    <!-- Voice Selector -->
+                    <div class="flex flex-col gap-1.5">
+                        <label for="voiceSelect" class="text-xs font-bold text-slate-700 flex items-center justify-between">
+                            <span>목소리 (Voice)</span>
+                            <span id="voiceCountBadge" class="text-[11px] font-normal text-slate-400">로딩 중...</span>
+                        </label>
+                        <div class="relative">
+                            <select id="voiceSelect" class="w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 pr-10 text-xs text-slate-700 font-medium focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all">
+                                <option value="">시스템 음성 로딩 중...</option>
+                            </select>
+                            <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-500">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rate Slider -->
+                    <div class="flex flex-col gap-1.5">
+                        <div class="flex items-center justify-between text-xs font-bold text-slate-700">
+                            <label for="rateSlider">재생 속도 (Rate)</label>
+                            <span id="rateValue" class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-bold tabular-nums text-xs">1.0x</span>
                         </div>
                         <input type="range" id="rateSlider" min="0.5" max="2.0" step="0.1" value="1.0" class="w-full">
                     </div>
 
-                    <div class="flex flex-col gap-2">
-                        <div class="flex justify-between text-[11px]">
-                            <span class="text-zinc-500 font-medium">톤</span>
-                            <span id="pitchValue" class="text-zinc-900 font-semibold tabular-nums">1.0</span>
+                    <!-- Pitch Slider -->
+                    <div class="flex flex-col gap-1.5">
+                        <div class="flex items-center justify-between text-xs font-bold text-slate-700">
+                            <label for="pitchSlider">음높이 (Pitch)</label>
+                            <span id="pitchValue" class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-bold tabular-nums text-xs">1.0</span>
                         </div>
                         <input type="range" id="pitchSlider" min="0.5" max="2.0" step="0.1" value="1.0" class="w-full">
                     </div>
 
-                    <div class="flex flex-col gap-2">
-                        <div class="flex justify-between text-[11px]">
-                            <span class="text-zinc-500 font-medium">볼륨</span>
-                            <span id="volumeValue" class="text-zinc-900 font-semibold tabular-nums">100%</span>
+                    <!-- Volume Slider -->
+                    <div class="flex flex-col gap-1.5">
+                        <div class="flex items-center justify-between text-xs font-bold text-slate-700">
+                            <label for="volumeSlider">음량 (Volume)</label>
+                            <span id="volumeValue" class="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 font-bold tabular-nums text-xs">100%</span>
                         </div>
                         <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1" class="w-full">
                     </div>
                 </div>
-            </div>
 
-            <!-- Interactive Segment Playlist -->
-            <div class="bg-white rounded-2xl border border-zinc-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex flex-col flex-grow overflow-hidden">
-                <div class="px-5 py-3 border-b border-zinc-100 flex items-center justify-between">
-                    <span class="text-xs font-semibold text-zinc-700">구간 목록</span>
-                    <span id="playlistBadge" class="text-[11px] text-zinc-400 tabular-nums">0 / 0</span>
-                </div>
+                <!-- Chunk Playlist Explorer Card -->
+                <div class="bg-white rounded-3xl shadow-sm border border-slate-200/80 p-6 flex flex-col">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+                        <div class="flex items-center gap-2">
+                            <h2 class="font-bold text-slate-800 text-sm">청크 플레이리스트 탐색기</h2>
+                            <span id="chunkListCountBadge" class="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">0개</span>
+                        </div>
+                        <span class="text-[11px] text-slate-400">클릭 시 해당 구간부터 재생</span>
+                    </div>
 
-                <div id="chunkListContainer" class="h-[340px] lg:h-[372px] overflow-y-auto p-2 flex flex-col gap-1">
-                    <div class="h-full flex items-center justify-center text-xs text-zinc-400">
-                        분할된 문장 구간이 여기에 표시됩니다.
+                    <!-- Scrollable Chunk List Container -->
+                    <div id="chunkListContainer" class="h-72 overflow-y-auto flex flex-col gap-2 pr-1">
+                        <!-- Placeholder item -->
+                        <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/60 text-slate-400 text-xs text-center flex flex-col items-center justify-center h-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mb-2 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                            <span>텍스트를 입력하거나 파일을 업로드하면<br>문장 단위 청크 목록이 자동으로 생성됩니다.</span>
+                        </div>
                     </div>
                 </div>
+
             </div>
 
-        </aside>
+        </div>
     </main>
 
-    <!-- Fixed Bottom Glassmorphism Player Dock -->
-    <footer class="fixed bottom-0 inset-x-0 z-40 bg-white/85 backdrop-blur-xl border-t border-zinc-200/80">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex flex-col gap-2">
-            
-            <!-- Progress Scrubber -->
-            <div class="flex items-center gap-3">
-                <span id="currentChunkLabel" class="text-[11px] font-medium text-zinc-500 tabular-nums w-10 text-right">0</span>
-                <input type="range" id="scrubber" min="0" max="0" value="0" disabled class="w-full flex-grow">
-                <span id="totalChunkLabel" class="text-[11px] font-medium text-zinc-400 tabular-nums w-10">0</span>
-            </div>
-
-            <!-- Transport Controls -->
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2 min-w-[100px]">
-                    <span id="statusDot" class="w-2 h-2 rounded-full bg-zinc-300"></span>
-                    <span id="statusText" class="text-xs font-medium text-zinc-500">대기</span>
-                </div>
-
-                <div class="flex items-center gap-2 sm:gap-4">
-                    <!-- Prev Chunk -->
-                    <button type="button" id="prevChunkBtn" disabled title="이전 구간 (←)" class="p-2 rounded-xl text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 disabled:opacity-30 disabled:pointer-events-none transition-colors">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M8.445 14.832A1 1 0 0010 14v-2.798l5.445 3.63A1 1 0 0017 14V6a1 1 0 00-1.555-.832L10 8.798V6a1 1 0 00-1.555-.832l-6 4a1 1 0 000 1.664l6 4z" />
-                        </svg>
-                    </button>
-
-                    <!-- Play / Pause Primary Button -->
-                    <button type="button" id="playPauseBtn" title="재생 / 일시정지 (Space)" class="h-10 px-6 rounded-full bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-white text-xs font-semibold flex items-center gap-2 shadow-sm transition-all">
-                        <svg id="playIcon" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
-                        </svg>
-                        <svg id="pauseIcon" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                        </svg>
-                        <span id="playPauseLabel">재생</span>
-                    </button>
-
-                    <!-- Next Chunk -->
-                    <button type="button" id="nextChunkBtn" disabled title="다음 구간 (→)" class="p-2 rounded-xl text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 disabled:opacity-30 disabled:pointer-events-none transition-colors">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M11.555 5.168A1 1 0 0010 6v2.798l-5.445-3.63A1 1 0 003 6v12a1 1 0 001.555.832L10 15.202V18a1 1 0 001.555.832l6-4a1 1 0 000-1.664l-6-4z" />
-                        </svg>
-                    </button>
-
-                    <!-- Stop -->
-                    <button type="button" id="stopBtn" disabled title="정지" class="p-2 rounded-xl text-zinc-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 disabled:pointer-events-none transition-colors">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
-                        </svg>
-                    </button>
-                </div>
-
-                <div class="hidden sm:flex items-center justify-end min-w-[100px] text-[11px] text-zinc-400">
-                    <span>Space 재생 · ←/→ 이동</span>
-                </div>
-            </div>
-        </div>
+    <!-- Footer -->
+    <footer class="text-center py-6 text-xs text-slate-400">
+        제한 없는 TTS
     </footer>
 
+    <!-- Application Script -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // 1. Check Browser Support
             if (!('speechSynthesis' in window)) {
                 document.getElementById('unsupportedBanner').classList.remove('hidden');
-                document.getElementById('playPauseBtn').disabled = true;
+                document.getElementById('playBtn').disabled = true;
                 return;
             }
 
             const synth = window.speechSynthesis;
 
-            // DOM Elements
+            // 2. DOM Elements
             const textInput = document.getElementById('textInput');
-            const dropZone = document.getElementById('dropZone');
-            const dragOverlay = document.getElementById('dragOverlay');
             const fileInput = document.getElementById('fileInput');
             const sampleBtn = document.getElementById('sampleBtn');
             const clearBtn = document.getElementById('clearBtn');
+            const charCountBadge = document.getElementById('charCountBadge');
+            const chunkInfoText = document.getElementById('chunkInfoText');
 
-            const statsText = document.getElementById('statsText');
-            const chunkSummary = document.getElementById('chunkSummary');
-            const playlistBadge = document.getElementById('playlistBadge');
-            const chunkListContainer = document.getElementById('chunkListContainer');
+            const playBtn = document.getElementById('playBtn');
+            const playBtnText = document.getElementById('playBtnText');
+            const pauseResumeBtn = document.getElementById('pauseResumeBtn');
+            const pauseIcon = document.getElementById('pauseIcon');
+            const pauseResumeText = document.getElementById('pauseResumeText');
+            const stopBtn = document.getElementById('stopBtn');
+            const prevChunkBtn = document.getElementById('prevChunkBtn');
+            const nextChunkBtn = document.getElementById('nextChunkBtn');
+
+            const progressBarFill = document.getElementById('progressBarFill');
+            const progressPercent = document.getElementById('progressPercent');
+            const progressTextLabel = document.getElementById('progressTextLabel');
+            const remainingTime = document.getElementById('remainingTime');
 
             const voiceSelect = document.getElementById('voiceSelect');
+            const voiceCountBadge = document.getElementById('voiceCountBadge');
+            const resetSettingsBtn = document.getElementById('resetSettingsBtn');
+
             const rateSlider = document.getElementById('rateSlider');
             const rateValue = document.getElementById('rateValue');
             const pitchSlider = document.getElementById('pitchSlider');
             const pitchValue = document.getElementById('pitchValue');
             const volumeSlider = document.getElementById('volumeSlider');
             const volumeValue = document.getElementById('volumeValue');
-            const resetSettingsBtn = document.getElementById('resetSettingsBtn');
 
-            const scrubber = document.getElementById('scrubber');
-            const currentChunkLabel = document.getElementById('currentChunkLabel');
-            const totalChunkLabel = document.getElementById('totalChunkLabel');
+            const chunkListContainer = document.getElementById('chunkListContainer');
+            const chunkListCountBadge = document.getElementById('chunkListCountBadge');
 
-            const playPauseBtn = document.getElementById('playPauseBtn');
-            const playIcon = document.getElementById('playIcon');
-            const pauseIcon = document.getElementById('pauseIcon');
-            const playPauseLabel = document.getElementById('playPauseLabel');
-            const prevChunkBtn = document.getElementById('prevChunkBtn');
-            const nextChunkBtn = document.getElementById('nextChunkBtn');
-            const stopBtn = document.getElementById('stopBtn');
             const statusDot = document.getElementById('statusDot');
             const statusText = document.getElementById('statusText');
 
-            // State
+            // 3. Application State
             let voices = [];
-            let chunks = [];
+            let chunks = []; // Array of text strings
             let currentIndex = 0;
             let isPlaying = false;
             let isPaused = false;
-            let keepAliveTimer = null;
-            let toastTimer = null;
+            let currentUtterance = null;
+            let toastTimeout = null;
+            let playbackStartTime = 0;
+            let totalCharsToRead = 0;
+            let charsReadSoFar = 0;
 
-            const sampleText = `긴 문서를 읽을 때는 문장 단위로 끊어 읽는 것이 가장 자연스럽습니다.\n\n브라우저 내장 음성 엔진은 한 번에 너무 긴 텍스트를 전달하면 중간에 멈추거나 오류가 발생할 수 있습니다. READER는 입력된 수만 자의 텍스트를 마침표와 줄바꿈 기준으로 자동 분할하여, 앞선 문장이 끝나자마자 다음 문장을 지연 없이 이어서 재생합니다.\n\n우측 구간 목록에서 원하는 문장을 클릭하거나 하단 탐색 바를 움직여 언제든 원하는 위치로 건너뛸 수 있습니다.`;
+            // Sample text for quick testing
+            const sampleText = `제1장: 인공지능과 음성 기술의 혁신
 
-            function showToast(msg) {
+현대 인공지능 기술은 눈부신 속도로 발전하고 있습니다. 특히 자연어 처리와 텍스트 음성 변환(TTS) 기술은 기계와 인간의 소통 방식을 완전히 바꾸어 놓았습니다. 과거의 기계음과 달리 오늘날의 브라우저 내장 Web Speech API는 매우 자연스럽고 부드러운 발음과 억조를 제공합니다.
+
+대용량 텍스트 처리의 중요성:
+소설 한 권, 방대한 논문, 혹은 수만 자에 달하는 리포트를 한 번에 읽고자 할 때, 기존의 웹 TTS 시스템은 텍스트가 너무 길면 중간에 멈추거나 브라우저 메모리 한계로 인해 크래시가 발생하는 문제가 있었습니다. 이를 해결하기 위해 개발된 본 대용량 스마트 TTS 시스템은 텍스트를 논리적인 문장과 문단 단위의 '청크(Chunk)'로 안전하게 자동 분할합니다.
+
+지능형 청크 큐 시스템의 작동 원리:
+1. 사용자가 입력하거나 업로드한 방대한 텍스트를 마침표(.), 물음표(?), 느낌표(!), 그리고 개행 문자 기준의 정규식을 활용하여 150~200자 내외의 최적화된 청크 배열로 나눕니다.
+2. 재생 시작 시 첫 번째 청크부터 순차적으로 'SpeechSynthesisUtterance' 객체를 생성하여 큐에 올리고, 각 청크의 onend 이벤트 발생 시 자동으로 다음 청크를 호출합니다.
+3. 사용자는 언제든지 특정 문단(청크)을 직접 클릭하거나 이전/다음 버튼을 눌러 원하는 구간으로 자유롭게 이동할 수 있습니다.
+4. 실시간으로 남은 예상 시간을 계산하고 진행률 바를 업데이트하여 대용량 텍스트 독서의 편리함을 극대화합니다.
+
+이 기술은 시각장애인 분들의 웹서핑과 독서 지원은 물론, 출퇴근길 긴 문서나 뉴스 브리핑을 귀로 듣는 오디오북 형태로 변환하는 데 매우 유용하게 활용될 수 있습니다. 지금 바로 여러분의 긴 글을 붙여넣고 편리한 음성 변환을 경험해 보세요!`;
+
+            // 4. Toast Notification
+            function showToast(message, icon = 'ℹ️') {
                 const toast = document.getElementById('toast');
-                document.getElementById('toastMessage').textContent = msg;
-                toast.classList.remove('-translate-y-16', 'opacity-0');
+                document.getElementById('toastMessage').textContent = message;
+                document.getElementById('toastIcon').textContent = icon;
+
+                toast.classList.remove('translate-y-[-150%]', 'opacity-0');
                 toast.classList.add('translate-y-0', 'opacity-100');
-                clearTimeout(toastTimer);
-                toastTimer = setTimeout(() => {
+
+                clearTimeout(toastTimeout);
+                toastTimeout = setTimeout(() => {
                     toast.classList.remove('translate-y-0', 'opacity-100');
-                    toast.classList.add('-translate-y-16', 'opacity-0');
-                }, 2200);
+                    toast.classList.add('translate-y-[-150%]', 'opacity-0');
+                }, 3000);
             }
 
-            // Clean Voice Formatting (Removes clutter like "Microsoft ... Online (Natural) - Korean (Korea)")
-            function formatVoiceName(voice) {
-                let name = voice.name
-                    .replace(/Microsoft\s+/i, '')
-                    .replace(/Google\s+/i, '')
-                    .replace(/Online\s*\(Natural\)\s*-\s*/i, '')
-                    .replace(/\(Korea\)/i, '')
-                    .replace(/Korean/i, '한국어')
-                    .trim();
-                return name || voice.name;
-            }
-
+            // 5. Populate Voices
             function loadVoices() {
                 const rawVoices = synth.getVoices();
                 if (!rawVoices.length) return;
@@ -345,41 +436,50 @@
                 voices = rawVoices;
                 voiceSelect.innerHTML = '';
 
-                const koVoices = [];
+                const koreanVoices = [];
                 const otherVoices = [];
 
                 voices.forEach((voice, index) => {
+                    const item = { voice, index };
                     if (voice.lang.toLowerCase().includes('ko')) {
-                        koVoices.push({ voice, index });
+                        koreanVoices.push(item);
                     } else {
-                        otherVoices.push({ voice, index });
+                        otherVoices.push(item);
                     }
                 });
 
-                if (koVoices.length > 0) {
-                    const group = document.createElement('optgroup');
-                    group.label = '한국어';
-                    koVoices.forEach(({ voice, index }) => {
-                        const opt = document.createElement('option');
-                        opt.value = index;
-                        opt.textContent = formatVoiceName(voice);
-                        group.appendChild(opt);
+                koreanVoices.sort((a, b) => a.voice.name.localeCompare(b.voice.name));
+                otherVoices.sort((a, b) => a.voice.lang.localeCompare(b.voice.lang) || a.voice.name.localeCompare(b.voice.name));
+
+                if (koreanVoices.length > 0) {
+                    const koGroup = document.createElement('optgroup');
+                    koGroup.label = '🇰🇷 한국어 음성';
+                    koreanVoices.forEach(({ voice, index }) => {
+                        const option = document.createElement('option');
+                        option.value = index;
+                        option.textContent = `${voice.name} (${voice.lang})`;
+                        koGroup.appendChild(option);
                     });
-                    voiceSelect.appendChild(group);
-                    voiceSelect.value = koVoices[0].index;
+                    voiceSelect.appendChild(koGroup);
                 }
 
                 if (otherVoices.length > 0) {
-                    const group = document.createElement('optgroup');
-                    group.label = '기타 언어';
+                    const otherGroup = document.createElement('optgroup');
+                    otherGroup.label = '🌐 기타 언어 음성';
                     otherVoices.forEach(({ voice, index }) => {
-                        const opt = document.createElement('option');
-                        opt.value = index;
-                        opt.textContent = `${formatVoiceName(voice)} (${voice.lang})`;
-                        group.appendChild(opt);
+                        const option = document.createElement('option');
+                        option.value = index;
+                        option.textContent = `${voice.name} (${voice.lang})`;
+                        otherGroup.appendChild(option);
                     });
-                    voiceSelect.appendChild(group);
+                    voiceSelect.appendChild(otherGroup);
                 }
+
+                if (koreanVoices.length > 0) {
+                    voiceSelect.value = koreanVoices[0].index;
+                }
+
+                voiceCountBadge.textContent = `${voices.length}개 음성 지원`;
             }
 
             loadVoices();
@@ -387,377 +487,346 @@
                 speechSynthesis.onvoiceschanged = loadVoices;
             }
 
-            // Smart Sentence-Boundary Chunking Engine (Handles 30,000+ chars effortlessly)
-            function chunkText(rawText) {
-                const text = rawText.trim();
-                if (!text) return [];
+            // 6. Intelligent Chunking Algorithm (Optimized for 30,000+ chars)
+            function processTextIntoChunks() {
+                const rawText = textInput.value.trim();
+                const charLen = rawText.length;
+                const wordCount = rawText ? rawText.split(/\s+/).length : 0;
 
-                // Split by newlines or sentence-ending punctuation (. ! ? 다. 요. 죠. 니다.)
-                const roughSentences = text.split(/(?<=[.?!])\s+|\n+/);
-                const result = [];
-                const MAX_CHUNK = 200;
+                charCountBadge.textContent = `${charLen.toLocaleString()}자 (단어 ${wordCount.toLocaleString()}개)`;
 
-                for (let i = 0; i < roughSentences.length; i++) {
-                    const sentence = roughSentences[i].trim();
-                    if (!sentence) continue;
-
-                    if (sentence.length <= MAX_CHUNK) {
-                        result.push(sentence);
-                    } else {
-                        // Break long run-on sentences at commas or spaces cleanly
-                        const subParts = sentence.match(/[^,，]+[,，]?/g) || [sentence];
-                        let buffer = '';
-                        for (const part of subParts) {
-                            if ((buffer + part).length <= MAX_CHUNK) {
-                                buffer += part;
-                            } else {
-                                if (buffer.trim()) result.push(buffer.trim());
-                                if (part.length > MAX_CHUNK) {
-                                    // Hard split fallback if a single clause exceeds MAX_CHUNK
-                                    for (let j = 0; j < part.length; j += MAX_CHUNK) {
-                                        result.push(part.slice(j, j + MAX_CHUNK).trim());
-                                    }
-                                    buffer = '';
-                                } else {
-                                    buffer = part;
-                                }
-                            }
-                        }
-                        if (buffer.trim()) result.push(buffer.trim());
-                    }
-                }
-                return result;
-            }
-
-            function updateTextStatsAndChunks() {
-                const text = textInput.value;
-                const charCount = text.length;
-                const rate = parseFloat(rateSlider.value) || 1.0;
-                // Average Korean TTS reading speed ~330 chars/min at 1.0x
-                const estimatedMinutes = Math.max(charCount > 0 ? 1 : 0, Math.round(charCount / (330 * rate)));
-
-                statsText.textContent = `${charCount.toLocaleString()}자 · 약 ${estimatedMinutes}분 소요`;
-
-                chunks = chunkText(text);
-                currentIndex = 0;
-
-                chunkSummary.textContent = `${chunks.length.toLocaleString()}개 구간`;
-                totalChunkLabel.textContent = chunks.length;
-                currentChunkLabel.textContent = chunks.length > 0 ? '1' : '0';
-                playlistBadge.textContent = `${chunks.length > 0 ? 1 : 0} / ${chunks.length}`;
-
-                scrubber.max = Math.max(0, chunks.length - 1);
-                scrubber.value = 0;
-                scrubber.disabled = chunks.length === 0;
-
-                renderPlaylist();
-            }
-
-            function escapeHTML(str) {
-                return str.replace(/[&<>"']/g, m => ({
-                    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-                }[m]));
-            }
-
-            function renderPlaylist() {
-                if (chunks.length === 0) {
-                    chunkListContainer.innerHTML = `
-                        <div class="h-full flex items-center justify-center text-xs text-zinc-400">
-                            분할된 문장 구간이 여기에 표시됩니다.
-                        </div>`;
+                if (!rawText) {
+                    chunks = [];
+                    renderChunkList();
+                    chunkInfoText.textContent = `청크 분할 대기 중 (0개 청크)`;
                     return;
                 }
 
-                // Use DocumentFragment for fast rendering even with 500+ chunks (30,000+ chars)
-                const frag = document.createDocumentFragment();
-                chunks.forEach((chunk, idx) => {
-                    const isActive = idx === currentIndex && (isPlaying || isPaused);
-                    const btn = document.createElement('button');
-                    btn.type = 'button';
-                    btn.dataset.index = idx;
-                    btn.className = `chunk-row w-full text-left px-3.5 py-2.5 rounded-xl transition-colors flex items-start gap-3 ${
-                        isActive 
-                            ? 'bg-zinc-900 text-white' 
-                            : 'hover:bg-zinc-100 text-zinc-700'
-                    }`;
+                // Split by sentence boundaries (. ? ! \n) and ensure chunk size is safe (approx 150-250 chars)
+                // Regex matches sentence endings followed by whitespace or newlines
+                const rawSentences = rawText.split(/(?<=[.?!])\s+|\n+/);
+                chunks = [];
 
-                    btn.innerHTML = `
-                        <span class="text-[11px] font-semibold tabular-nums mt-0.5 shrink-0 ${
-                            isActive ? 'text-zinc-400' : 'text-zinc-400'
-                        }">${idx + 1}</span>
-                        <span class="text-xs leading-relaxed line-clamp-2">${escapeHTML(chunk)}</span>
-                    `;
-                    frag.appendChild(btn);
-                });
+                rawSentences.forEach(sentence => {
+                    const trimmed = sentence.trim();
+                    if (!trimmed) return;
 
-                chunkListContainer.innerHTML = '';
-                chunkListContainer.appendChild(frag);
-            }
-
-            // Event delegation for fast click handling on large chunk lists
-            chunkListContainer.addEventListener('click', (e) => {
-                const row = e.target.closest('.chunk-row');
-                if (!row) return;
-                const idx = parseInt(row.dataset.index, 10);
-                if (!isNaN(idx)) {
-                    jumpToChunk(idx);
-                }
-            });
-
-            function highlightActiveRow() {
-                const rows = chunkListContainer.querySelectorAll('.chunk-row');
-                rows.forEach((row, idx) => {
-                    const isActive = idx === currentIndex && (isPlaying || isPaused);
-                    if (isActive) {
-                        row.className = 'chunk-row w-full text-left px-3.5 py-2.5 rounded-xl transition-colors flex items-start gap-3 bg-zinc-900 text-white';
-                        row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                    if (trimmed.length <= 250) {
+                        chunks.push(trimmed);
                     } else {
-                        row.className = 'chunk-row w-full text-left px-3.5 py-2.5 rounded-xl transition-colors flex items-start gap-3 hover:bg-zinc-100 text-zinc-700';
+                        // If a single sentence is extremely long, split by commas or sub-clauses
+                        let subChunks = trimmed.match(/[^,，.?!]+[,，.?!]*/g) || [trimmed];
+                        let buffer = '';
+                        subChunks.forEach(sub => {
+                            if ((buffer + sub).length <= 250) {
+                                buffer += sub;
+                            } else {
+                                if (buffer.trim()) chunks.push(buffer.trim());
+                                buffer = sub;
+                            }
+                        });
+                        if (buffer.trim()) chunks.push(buffer.trim());
                     }
                 });
 
-                const displayIdx = chunks.length > 0 ? currentIndex + 1 : 0;
-                currentChunkLabel.textContent = displayIdx;
-                playlistBadge.textContent = `${displayIdx} / ${chunks.length}`;
-                scrubber.value = currentIndex;
+                chunkInfoText.textContent = `총 ${chunks.length.toLocaleString()}개 청크로 분할됨`;
+                renderChunkList();
             }
 
-            // Chrome Keep-Alive Heartbeat (Prevents 15-second auto-pause bug)
-            function startKeepAlive() {
-                stopKeepAlive();
-                keepAliveTimer = setInterval(() => {
-                    if (synth.speaking && !synth.paused) {
-                        synth.pause();
-                        synth.resume();
-                    }
-                }, 10000);
-            }
+            // 7. Render Chunk Playlist UI
+            function renderChunkList() {
+                chunkListCountBadge.textContent = `${chunks.length}개`;
 
-            function stopKeepAlive() {
-                if (keepAliveTimer) {
-                    clearInterval(keepAliveTimer);
-                    keepAliveTimer = null;
-                }
-            }
-
-            function playFromIndex(index) {
                 if (chunks.length === 0) {
-                    showToast('재생할 텍스트를 입력해 주세요.');
+                    chunkListContainer.innerHTML = `
+                        <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/60 text-slate-400 text-xs text-center flex flex-col items-center justify-center h-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mb-2 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                            </svg>
+                            <span>텍스트를 입력하거나 파일을 업로드하면<br>문장 단위 청크 목록이 자동으로 생성됩니다.</span>
+                        </div>
+                    `;
+                    return;
+                }
+
+                let html = '';
+                chunks.forEach((chunk, index) => {
+                    const isActive = isPlaying && currentIndex === index;
+                    const bgClass = isActive 
+                        ? 'bg-indigo-50 border-indigo-300 shadow-sm ring-2 ring-indigo-500/20' 
+                        : 'bg-slate-50/80 hover:bg-slate-100/80 border-slate-200/60';
+                    
+                    html += `
+                        <div data-index="${index}" class="chunk-item p-3 rounded-2xl border ${bgClass} cursor-pointer transition-all flex items-start gap-3">
+                            <span class="w-6 h-6 rounded-full ${isActive ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'} text-[11px] font-bold flex items-center justify-center shrink-0 mt-0.5">${index + 1}</span>
+                            <p class="text-xs text-slate-700 leading-relaxed line-clamp-2 flex-grow">${escapeHTML(chunk)}</p>
+                        </div>
+                    `;
+                });
+
+                chunkListContainer.innerHTML = html;
+
+                // Bind click events on chunk items
+                document.querySelectorAll('.chunk-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const idx = parseInt(item.getAttribute('data-index'));
+                        jumpToChunk(idx);
+                    });
+                });
+            }
+
+            function escapeHTML(str) {
+                return str.replace(/[&<>"']/g, (m) => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                }[m]));
+            }
+
+            // 8. Queue Playback Engine
+            function startPlayback(startIndex = 0) {
+                if (chunks.length === 0) {
+                    showToast('읽을 텍스트가 없습니다. 내용을 입력해 주세요.', '⚠️');
                     return;
                 }
 
                 synth.cancel();
-                currentIndex = Math.max(0, Math.min(index, chunks.length - 1));
+                currentIndex = startIndex;
                 isPlaying = true;
                 isPaused = false;
-                updatePlayerUI();
-                startKeepAlive();
-                speakCurrentChunk();
+                playbackStartTime = Date.now();
+
+                // Calculate total chars
+                totalCharsToRead = chunks.reduce((acc, cur) => acc + cur.length, 0);
+                charsReadSoFar = 0;
+                for (let i = 0; i < startIndex; i++) {
+                    charsReadSoFar += chunks[i].length;
+                }
+
+                setUIState('speaking');
+                playChunk(currentIndex);
             }
 
-            function speakCurrentChunk() {
-                if (!isPlaying || currentIndex >= chunks.length) {
-                    stopPlayback(true);
+            function playChunk(index) {
+                if (!isPlaying || index >= chunks.length) {
+                    stopPlayback();
+                    showToast('음성 재생이 완료되었습니다.', '🎉');
                     return;
                 }
 
-                highlightActiveRow();
-                updateNavButtons();
+                currentIndex = index;
+                renderChunkList();
+                scrollToActiveChunk();
 
-                const utterance = new SpeechSynthesisUtterance(chunks[currentIndex]);
-                const selectedVoiceIdx = voiceSelect.value;
-                if (selectedVoiceIdx !== '' && voices[selectedVoiceIdx]) {
-                    utterance.voice = voices[selectedVoiceIdx];
+                const text = chunks[index];
+                const utterance = new SpeechSynthesisUtterance(text);
+                currentUtterance = utterance;
+
+                const selectedIndex = voiceSelect.value;
+                if (selectedIndex !== '' && voices[selectedIndex]) {
+                    utterance.voice = voices[selectedIndex];
                 }
 
                 utterance.rate = parseFloat(rateSlider.value);
                 utterance.pitch = parseFloat(pitchSlider.value);
                 utterance.volume = parseFloat(volumeSlider.value);
 
+                utterance.onstart = () => {
+                    updateProgress();
+                };
+
                 utterance.onend = () => {
+                    charsReadSoFar += text.length;
                     if (isPlaying && !isPaused) {
-                        currentIndex++;
-                        if (currentIndex < chunks.length) {
-                            speakCurrentChunk();
-                        } else {
-                            stopPlayback(true);
-                        }
+                        playChunk(currentIndex + 1);
                     }
                 };
 
-                utterance.onerror = (e) => {
-                    if (e.error !== 'canceled' && e.error !== 'interrupted') {
-                        stopPlayback(false);
-                        showToast('음성 출력 중 오류가 발생했습니다.');
+                utterance.onerror = (event) => {
+                    if (event.error !== 'canceled' && event.error !== 'interrupted') {
+                        showToast('재생 중 오류가 발생했습니다.', '❌');
+                        stopPlayback();
                     }
                 };
 
                 synth.speak(utterance);
             }
 
-            function togglePlayPause() {
+            function jumpToChunk(index) {
+                if (index < 0 || index >= chunks.length) return;
+                synth.cancel();
+                startPlayback(index);
+                showToast(`${index + 1}번 청크로 이동했습니다.`, '⏩');
+            }
+
+            function togglePauseResume() {
+                if (!isPlaying) return;
+
+                if (!isPaused) {
+                    synth.pause();
+                    isPaused = true;
+                    setUIState('paused');
+                } else {
+                    synth.resume();
+                    isPaused = false;
+                    setUIState('speaking');
+                }
+            }
+
+            function stopPlayback() {
+                synth.cancel();
+                isPlaying = false;
+                isPaused = false;
+                currentUtterance = null;
+                currentIndex = 0;
+                setUIState('idle');
+                renderChunkList();
+                updateProgress();
+            }
+
+            function setUIState(state) {
+                if (state === 'idle') {
+                    statusDot.className = 'w-3 h-3 rounded-full bg-slate-300';
+                    statusText.textContent = '대기 중';
+                    playBtnText.textContent = '재생 시작';
+                    pauseResumeBtn.disabled = true;
+                    stopBtn.disabled = true;
+                    prevChunkBtn.disabled = true;
+                    nextChunkBtn.disabled = true;
+                    pauseResumeText.textContent = '일시정지';
+                } else if (state === 'speaking') {
+                    statusDot.className = 'w-3 h-3 rounded-full bg-indigo-600 animate-pulse';
+                    statusText.textContent = '재생 중';
+                    playBtnText.textContent = '재생 중...';
+                    pauseResumeBtn.disabled = false;
+                    stopBtn.disabled = false;
+                    prevChunkBtn.disabled = currentIndex === 0;
+                    nextChunkBtn.disabled = currentIndex >= chunks.length - 1;
+                    pauseResumeText.textContent = '일시정지';
+                    pauseIcon.classList.remove('hidden');
+                } else if (state === 'paused') {
+                    statusDot.className = 'w-3 h-3 rounded-full bg-amber-500';
+                    statusText.textContent = '일시정지됨';
+                    playBtnText.textContent = '일시정지됨';
+                    pauseResumeBtn.disabled = false;
+                    stopBtn.disabled = false;
+                    pauseResumeText.textContent = '재개';
+                }
+            }
+
+            function updateProgress() {
                 if (chunks.length === 0) {
-                    showToast('재생할 텍스트를 입력해 주세요.');
+                    progressBarFill.style.width = '0%';
+                    progressPercent.textContent = '0%';
+                    progressTextLabel.textContent = `전체 재생 진행률 (청크 0 / 0)`;
+                    remainingTime.textContent = '0분 0초';
                     return;
                 }
 
-                if (!isPlaying && !isPaused) {
-                    playFromIndex(currentIndex);
-                } else if (isPlaying && !isPaused) {
-                    synth.pause();
-                    isPaused = true;
-                    isPlaying = false;
-                    stopKeepAlive();
-                    updatePlayerUI();
-                } else if (isPaused) {
-                    synth.resume();
-                    isPaused = false;
-                    isPlaying = true;
-                    startKeepAlive();
-                    updatePlayerUI();
-                }
-            }
+                const percent = Math.min(100, Math.round((charsReadSoFar / totalCharsToRead) * 100));
+                progressBarFill.style.width = `${percent}%`;
+                progressPercent.textContent = `${percent}%`;
+                progressTextLabel.textContent = `전체 재생 진행률 (청크 ${currentIndex + 1} / ${chunks.length})`;
 
-            function stopPlayback(completed = false) {
-                synth.cancel();
-                stopKeepAlive();
-                isPlaying = false;
-                isPaused = false;
-                if (completed) {
-                    currentIndex = 0;
-                    showToast('재생이 완료되었습니다.');
-                }
-                updatePlayerUI();
-                highlightActiveRow();
-                updateNavButtons();
-            }
-
-            function jumpToChunk(idx) {
-                if (idx < 0 || idx >= chunks.length) return;
-                playFromIndex(idx);
-            }
-
-            function updatePlayerUI() {
-                if (isPlaying) {
-                    playIcon.classList.add('hidden');
-                    pauseIcon.classList.remove('hidden');
-                    playPauseLabel.textContent = '일시정지';
-                    statusDot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
-                    statusText.textContent = '재생 중';
-                    stopBtn.disabled = false;
-                } else if (isPaused) {
-                    playIcon.classList.remove('hidden');
-                    pauseIcon.classList.add('hidden');
-                    playPauseLabel.textContent = '계속 재생';
-                    statusDot.className = 'w-2 h-2 rounded-full bg-amber-500';
-                    statusText.textContent = '일시정지';
-                    stopBtn.disabled = false;
+                // Estimate remaining time
+                const elapsedSec = (Date.now() - playbackStartTime) / 1000;
+                if (charsReadSoFar > 100 && elapsedSec > 2) {
+                    const charsPerSec = charsReadSoFar / elapsedSec;
+                    const remainingChars = totalCharsToRead - charsReadSoFar;
+                    const remainingSec = Math.max(0, Math.round(remainingChars / charsPerSec));
+                    const mins = Math.floor(remainingSec / 60);
+                    const secs = remainingSec % 60;
+                    remainingTime.textContent = `${mins}분 ${secs}초`;
                 } else {
-                    playIcon.classList.remove('hidden');
-                    pauseIcon.classList.add('hidden');
-                    playPauseLabel.textContent = '재생';
-                    statusDot.className = 'w-2 h-2 rounded-full bg-zinc-300';
-                    statusText.textContent = '대기';
-                    stopBtn.disabled = true;
+                    remainingTime.textContent = '계산 중...';
                 }
-                updateNavButtons();
             }
 
-            function updateNavButtons() {
-                const hasChunks = chunks.length > 0;
-                prevChunkBtn.disabled = !hasChunks || currentIndex <= 0;
-                nextChunkBtn.disabled = !hasChunks || currentIndex >= chunks.length - 1;
+            function scrollToActiveChunk() {
+                const activeEl = chunkListContainer.querySelector(`[data-index="${currentIndex}"]`);
+                if (activeEl) {
+                    chunkListContainer.scrollTo({
+                        top: activeEl.offsetTop - chunkListContainer.offsetTop - 20,
+                        behavior: 'smooth'
+                    });
+                }
             }
 
-            // Input & File Handling
-            let inputDebounce = null;
-            textInput.addEventListener('input', () => {
-                if (isPlaying || isPaused) stopPlayback(false);
-                clearTimeout(inputDebounce);
-                inputDebounce = setTimeout(updateTextStatsAndChunks, 150);
+            // 9. Event Listeners
+            textInput.addEventListener('input', processTextIntoChunks);
+
+            playBtn.addEventListener('click', () => {
+                if (!isPlaying) {
+                    startPlayback(currentIndex);
+                } else {
+                    togglePauseResume();
+                }
             });
 
-            function handleFileLoad(file) {
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    stopPlayback(false);
-                    textInput.value = e.target.result;
-                    updateTextStatsAndChunks();
-                    showToast(`${file.name} 불러옴`);
-                };
-                reader.onerror = () => showToast('파일을 읽을 수 없습니다.');
-                reader.readAsText(file, 'UTF-8');
-            }
+            pauseResumeBtn.addEventListener('click', togglePauseResume);
+            stopBtn.addEventListener('click', stopPlayback);
 
-            fileInput.addEventListener('change', (e) => {
-                handleFileLoad(e.target.files[0]);
-                fileInput.value = '';
+            prevChunkBtn.addEventListener('click', () => {
+                if (currentIndex > 0) {
+                    jumpToChunk(currentIndex - 1);
+                }
             });
 
-            // Drag & Drop support
-            ['dragenter', 'dragover'].forEach(evt => {
-                dropZone.addEventListener(evt, (e) => {
-                    e.preventDefault();
-                    dragOverlay.classList.remove('hidden');
-                });
+            nextChunkBtn.addEventListener('click', () => {
+                if (currentIndex < chunks.length - 1) {
+                    jumpToChunk(currentIndex + 1);
+                }
             });
 
-            ['dragleave', 'drop'].forEach(evt => {
-                dropZone.addEventListener(evt, (e) => {
-                    e.preventDefault();
-                    dragOverlay.classList.add('hidden');
-                });
-            });
-
-            dropZone.addEventListener('drop', (e) => {
-                const file = e.dataTransfer.files[0];
-                if (file) handleFileLoad(file);
-            });
-
-            // Buttons & Sliders
-            playPauseBtn.addEventListener('click', togglePlayPause);
-            stopBtn.addEventListener('click', () => stopPlayback(false));
-            prevChunkBtn.addEventListener('click', () => jumpToChunk(currentIndex - 1));
-            nextChunkBtn.addEventListener('click', () => jumpToChunk(currentIndex + 1));
-
-            scrubber.addEventListener('input', () => {
-                const targetIdx = parseInt(scrubber.value, 10);
-                currentChunkLabel.textContent = targetIdx + 1;
-                playlistBadge.textContent = `${targetIdx + 1} / ${chunks.length}`;
-            });
-
-            scrubber.addEventListener('change', () => {
-                const targetIdx = parseInt(scrubber.value, 10);
-                jumpToChunk(targetIdx);
-            });
-
+            // Sample button
             sampleBtn.addEventListener('click', () => {
-                stopPlayback(false);
+                stopPlayback();
                 textInput.value = sampleText;
-                updateTextStatsAndChunks();
+                processTextIntoChunks();
+                showToast('대용량 샘플 텍스트가 로드되었습니다.', '✨');
             });
 
+            // Clear button
             clearBtn.addEventListener('click', () => {
-                stopPlayback(false);
+                stopPlayback();
                 textInput.value = '';
-                updateTextStatsAndChunks();
-                textInput.focus();
+                processTextIntoChunks();
+                showToast('내용이 초기화되었습니다.', '🗑️');
             });
 
+            // File Upload (.txt)
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    stopPlayback();
+                    textInput.value = event.target.result;
+                    processTextIntoChunks();
+                    showToast(`"${file.name}" 파일이 성공적으로 로드되었습니다.`, '📁');
+                    fileInput.value = ''; // Reset input
+                };
+                reader.onerror = () => {
+                    showToast('파일을 읽는 중 오류가 발생했습니다.', '❌');
+                };
+                reader.readAsText(file, 'UTF-8');
+            });
+
+            // Sliders Live Updates
             rateSlider.addEventListener('input', () => {
                 rateValue.textContent = `${parseFloat(rateSlider.value).toFixed(1)}x`;
-                updateTextStatsAndChunks();
             });
-
             pitchSlider.addEventListener('input', () => {
                 pitchValue.textContent = parseFloat(pitchSlider.value).toFixed(1);
             });
-
             volumeSlider.addEventListener('input', () => {
                 volumeValue.textContent = `${Math.round(parseFloat(volumeSlider.value) * 100)}%`;
             });
 
+            // Reset settings
             resetSettingsBtn.addEventListener('click', () => {
                 rateSlider.value = 1.0;
                 rateValue.textContent = '1.0x';
@@ -765,41 +834,16 @@
                 pitchValue.textContent = '1.0';
                 volumeSlider.value = 1.0;
                 volumeValue.textContent = '100%';
-                updateTextStatsAndChunks();
-                showToast('설정이 초기화되었습니다.');
+                showToast('음성 설정이 기본값으로 초기화되었습니다.', '🔄');
             });
 
-            // Keyboard Shortcuts
-            document.addEventListener('keydown', (e) => {
-                const isTyping = document.activeElement === textInput;
-
-                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                    e.preventDefault();
-                    togglePlayPause();
-                    return;
-                }
-
-                if (!isTyping) {
-                    if (e.code === 'Space') {
-                        e.preventDefault();
-                        togglePlayPause();
-                    } else if (e.key === 'ArrowLeft') {
-                        e.preventDefault();
-                        if (currentIndex > 0) jumpToChunk(currentIndex - 1);
-                    } else if (e.key === 'ArrowRight') {
-                        e.preventDefault();
-                        if (currentIndex < chunks.length - 1) jumpToChunk(currentIndex + 1);
-                    }
-                }
-            });
-
+            // Window unload safety cleanup
             window.addEventListener('beforeunload', () => {
                 synth.cancel();
-                stopKeepAlive();
             });
 
-            // Init
-            updateTextStatsAndChunks();
+            // Initial load
+            processTextIntoChunks();
         });
     </script>
 </body>
